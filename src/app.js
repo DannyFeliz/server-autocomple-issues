@@ -1,37 +1,38 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import { Octokit } from "@octokit/rest";
 
-const { Octokit } = require("@octokit/rest");
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
-
-
-
-const app = express();
-
-// Apply middlware for CORS and JSON endpoing
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
 app.get('/issues', async (req, res) => {
-  const { q, order, per_page, state, labels = '' } = req.query;
-  console.log({ q, order, per_page, state, labels })
+  const { q, per_page = 5, state = 'open', labels = '' } = req.query;
   const REPO = `repo:facebook/react`;
-  const result = await octokit.rest.search.issuesAndPullRequests({
-    q: `${REPO} ${q} state:${state} is:issue ${labels}`,
-    order,
-    per_page,
-  })
 
-  res.json(result.data.items)
+  try {
+    const result = await octokit.rest.search.issuesAndPullRequests({
+      q: `${REPO} ${q} state:${state} is:issue ${labels}`,
+      per_page
+    })
+
+    res.json(result.data.items)
+  } catch (error) {
+    res.status(error.status).json({
+      message: error
+    })
+  }
 });
 
 app.listen(process.env.PORT, () =>
